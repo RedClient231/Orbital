@@ -77,7 +77,7 @@ internal object HiddenApiBypass {
             "forName", String::class.java
         )
         val getDeclaredMethodMethod: Method = Class::class.java.getMethod(
-            "getDeclaredMethod", String::class.java, Array<Class<*>>::class.java
+            "getDeclaredMethod", String::class.java, arrayOf<Class<*>>()::class.java
         )
 
         // Step 2: Use forName to get VMRuntime class
@@ -92,7 +92,7 @@ internal object HiddenApiBypass {
         ) as Method
 
         val setExemptions = getDeclaredMethodMethod.invoke(
-            vmRuntimeClass, "setHiddenApiExemptions", arrayOf(Array<String>::class.java)
+            vmRuntimeClass, "setHiddenApiExemptions", arrayOf<Class<*>>(arrayOf<String>()::class.java)
         ) as Method
 
         // Step 4: Make them accessible and invoke
@@ -101,7 +101,7 @@ internal object HiddenApiBypass {
 
         val runtime = getRuntime.invoke(null)
         // "L" prefix matches all reference types — exempts everything
-        setExemptions.invoke(runtime, arrayOf(arrayOf("L")))
+        setExemptions.invoke(runtime, arrayOf("L") as Any)
     }
 
     /**
