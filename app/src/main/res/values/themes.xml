@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      Host launcher theme. The real UI is Compose; this style just needs to
+      match the system bars so there's no flash of unstyled content at
+      launch time.
+    -->
+    <style name="Theme.Orbital" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <!--
+      Stub Activity theme. The stub's onCreate never actually runs under
+      normal operation (the hooks swap it for the guest). We still need a
+      theme so the framework can inflate a window for the hook to hand off
+      to the guest's Activity.attach().
+    -->
+    <style name="Theme.Orbital.StubTransparent" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+    </style>
+
+</resources>

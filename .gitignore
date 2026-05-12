@@ -1,0 +1,20 @@
+*.iml
+.gradle
+/local.properties
+/.idea/
+/.idea
+.DS_Store
+/build
+/app/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Keystores — never commit
+*.jks
+*.keystore
+
+# Generated vspace state during testing
+vspace_registry/
+vspace_slots/

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Orbital — virtual space runtime.
+
+  This manifest declares:
+    - A single launcher Activity (MainActivity) running in the default process
+    - 40 stub Activities across 10 `:pN` processes for hosting guest apps
+
+  The stub Activities are never visible or launchable by the user. They
+  exist so the framework will fork our stub processes when the host
+  dispatches a guest-launch intent.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- APK / XAPK import happens through the SAF file picker — no raw file
+         system access required. We keep the manifest permission list
+         minimal on purpose. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+
+    <application
+        android:name=".OrbitalApp"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Orbital"
+        android:largeHeap="true"
+        tools:targetApi="35">
+
+        <!-- ───── Host UI ─────────────────────────────────────────── -->
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- ───── Stub Activities (40 total: 10 slots × 4 launch modes) ─── -->
+        <!--
+          All stubs share the same transparent theme so the framework never
+          paints any placeholder UI between message dispatch and the guest's
+          real onCreate. Each carries `configChanges` so the framework won't
+          recreate them on orientation changes — once a guest is running we
+          never want it torn down and restarted.
+        -->
+
+        <activity android:name=".engine.stub.StubActivity_P0_Std" android:process=":p0" android:exported="false" android:launchMode="standard" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P0_Top" android:process=":p0" android:exported="false" android:launchMode="singleTop" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P0_Task" android:process=":p0" android:exported="false" android:launchMode="singleTask" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P0_Instance" android:process=":p0" android:exported="false" android:launchMode="singleInstance" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+
+        <activity android:name=".engine.stub.StubActivity_P1_Std" android:process=":p1" android:exported="false" android:launchMode="standard" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P1_Top" android:process=":p1" android:exported="false" android:launchMode="singleTop" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P1_Task" android:process=":p1" android:exported="false" android:launchMode="singleTask" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P1_Instance" android:process=":p1" android:exported="false" android:launchMode="singleInstance" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+
+        <activity android:name=".engine.stub.StubActivity_P2_Std" android:process=":p2" android:exported="false" android:launchMode="standard" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P2_Top" android:process=":p2" android:exported="false" android:launchMode="singleTop" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P2_Task" android:process=":p2" android:exported="false" android:launchMode="singleTask" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P2_Instance" android:process=":p2" android:exported="false" android:launchMode="singleInstance" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+
+        <activity android:name=".engine.stub.StubActivity_P3_Std" android:process=":p3" android:exported="false" android:launchMode="standard" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P3_Top" android:process=":p3" android:exported="false" android:launchMode="singleTop" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P3_Task" android:process=":p3" android:exported="false" android:launchMode="singleTask" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P3_Instance" android:process=":p3" android:exported="false" android:launchMode="singleInstance" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+
+        <activity android:name=".engine.stub.StubActivity_P4_Std" android:process=":p4" android:exported="false" android:launchMode="standard" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P4_Top" android:process=":p4" android:exported="false" android:launchMode="singleTop" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P4_Task" android:process=":p4" android:exported="false" android:launchMode="singleTask" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P4_Instance" android:process=":p4" android:exported="false" android:launchMode="singleInstance" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+
+        <activity android:name=".engine.stub.StubActivity_P5_Std" android:process=":p5" android:exported="false" android:launchMode="standard" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P5_Top" android:process=":p5" android:exported="false" android:launchMode="singleTop" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P5_Task" android:process=":p5" android:exported="false" android:launchMode="singleTask" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P5_Instance" android:process=":p5" android:exported="false" android:launchMode="singleInstance" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+
+        <activity android:name=".engine.stub.StubActivity_P6_Std" android:process=":p6" android:exported="false" android:launchMode="standard" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P6_Top" android:process=":p6" android:exported="false" android:launchMode="singleTop" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P6_Task" android:process=":p6" android:exported="false" android:launchMode="singleTask" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P6_Instance" android:process=":p6" android:exported="false" android:launchMode="singleInstance" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+
+        <activity android:name=".engine.stub.StubActivity_P7_Std" android:process=":p7" android:exported="false" android:launchMode="standard" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P7_Top" android:process=":p7" android:exported="false" android:launchMode="singleTop" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P7_Task" android:process=":p7" android:exported="false" android:launchMode="singleTask" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P7_Instance" android:process=":p7" android:exported="false" android:launchMode="singleInstance" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+
+        <activity android:name=".engine.stub.StubActivity_P8_Std" android:process=":p8" android:exported="false" android:launchMode="standard" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P8_Top" android:process=":p8" android:exported="false" android:launchMode="singleTop" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P8_Task" android:process=":p8" android:exported="false" android:launchMode="singleTask" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P8_Instance" android:process=":p8" android:exported="false" android:launchMode="singleInstance" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+
+        <activity android:name=".engine.stub.StubActivity_P9_Std" android:process=":p9" android:exported="false" android:launchMode="standard" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P9_Top" android:process=":p9" android:exported="false" android:launchMode="singleTop" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P9_Task" android:process=":p9" android:exported="false" android:launchMode="singleTask" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+        <activity android:name=".engine.stub.StubActivity_P9_Instance" android:process=":p9" android:exported="false" android:launchMode="singleInstance" android:theme="@style/Theme.Orbital.StubTransparent" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|locale|density" />
+
+    </application>
+
+</manifest>
