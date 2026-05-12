@@ -28,12 +28,36 @@ class OrbitalApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // Bypass FIRST — before any reflection on framework internals.
-        // Even host-side code (AssetManager hidden ctor during guest load)
-        // benefits from it, so we install in both branches.
-        HiddenApiBypass.install()
-
+        // Timber FIRST so LogcatSeed can log its own status.
         Timber.plant(Timber.DebugTree())
+
+        // SEED — captures the ENTIRE logcat to /Download/OrbitalLogs/
+        // from this exact moment until the process dies. Every tag, every
+        // priority, every framework message. This is our reverse engineering.
+        val procName = resolveProcessName() ?: packageName
+        com.redclient.orbital.engine.diagnostics.LogcatSeed.plant(procName)
+
+        // On Android 11+, request MANAGE_EXTERNAL_STORAGE so the seed can
+        // write to /Download/. Without this, the logcat file won't be created.
+        // The user will see a one-time "Allow access to manage all files" prompt
+        // if not already granted.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            if (!android.os.Environment.isExternalStorageManager()) {
+                try {
+                    val intent = android.content.Intent(
+                        android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                        android.net.Uri.parse("package:$packageName")
+                    )
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(intent)
+                } catch (_: Throwable) {
+                    Timber.w("OrbitalApp: could not request MANAGE_EXTERNAL_STORAGE")
+                }
+            }
+        }
+
+        // Bypass SECOND — before any reflection on framework internals.
+        HiddenApiBypass.install()
 
         val procName = resolveProcessName()
         Timber.i("OrbitalApp: starting in process %s", procName)
