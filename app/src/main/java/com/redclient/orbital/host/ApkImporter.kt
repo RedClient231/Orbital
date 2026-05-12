@@ -117,7 +117,19 @@ class ApkImporter(
                         if (looksApk || looksObb) {
                             val safe = name.replace('/', '_').replace('\\', '_')
                             val out = File(stage, safe)
-                            FileOutputStream(out).use { zip.copyTo(it) }
+                            // CRITICAL: must NOT use InputStream.copyTo here.
+                            // copyTo reads until EOF of the whole ZipInputStream,
+                            // consuming ALL remaining entries. We must read only
+                            // the bytes belonging to THIS entry (bounded by
+                            // closeEntry/nextEntry).
+                            FileOutputStream(out).use { fos ->
+                                val buf = ByteArray(65536)
+                                var n = zip.read(buf)
+                                while (n >= 0) {
+                                    fos.write(buf, 0, n)
+                                    n = zip.read(buf)
+                                }
+                            }
                             if (looksApk) extractedApks += out else extractedObbs += out
                         }
                     }
