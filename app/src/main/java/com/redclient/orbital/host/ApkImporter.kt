@@ -187,9 +187,9 @@ class ApkImporter(
     // -- Native lib extraction -----------------------------------------
 
     /**
-     * Walks the APK ZIP and copies every `lib/<abi>/*.so` entry into
-     * `targetDir/<abi>/*.so`. Returns the target directory if any libs
-     * were found, null otherwise.
+     * Walks the APK ZIP and copies every `lib/ABI/NAME.so` entry into the
+     * corresponding `targetDir/ABI/NAME.so`. Returns the target directory
+     * if any libs were found, null otherwise.
      */
     private fun extractNativeLibs(apk: File, targetDir: File): File? {
         var anyExtracted = false
