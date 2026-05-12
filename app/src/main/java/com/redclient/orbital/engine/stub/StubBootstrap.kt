@@ -46,19 +46,34 @@ internal object StubBootstrap {
             Timber.w("StubBootstrap: no registry entry for %s — idling", guestPackage)
             return
         }
+        Timber.i(
+            "StubBootstrap: manifest ok — pkg=%s main=%s apk=%s splits=%d nativeLibDir=%s",
+            manifest.packageName, manifest.mainActivity, manifest.apkPath,
+            manifest.splitApkPaths.size, manifest.nativeLibDir,
+        )
 
         // 1. Load the guest: DexClassLoader + Resources + native libs.
-        val bundle = GuestLoader(app).load(manifest, paths.dexCacheFor(guestPackage))
+        val bundle = try {
+            GuestLoader(app).load(manifest, paths.dexCacheFor(guestPackage))
+        } catch (t: Throwable) {
+            Timber.e(t, "StubBootstrap: guest load failed for %s", guestPackage)
+            return
+        }
         StubState.setBundle(bundle)
 
         // 2. Install the two framework hooks.
         val hChained = installHCallback()
         val iShimmed = installInstrumentationShim()
 
-        Timber.i(
-            "StubBootstrap: ready — hCallback=%s instrShim=%s",
-            hChained, iShimmed,
-        )
+        if (!hChained || !iShimmed) {
+            Timber.e(
+                "StubBootstrap: HOOK INSTALL FAILED — hCallback=%s instrShim=%s — " +
+                    "guest will not launch. Check HiddenApiBypass ran first.",
+                hChained, iShimmed,
+            )
+        } else {
+            Timber.i("StubBootstrap: ready — hCallback=true instrShim=true")
+        }
     }
 
     // -- Slot hint I/O -------------------------------------------------

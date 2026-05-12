@@ -11,7 +11,6 @@ import timber.log.Timber
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.io.InputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import javax.xml.parsers.SAXParserFactory
@@ -96,37 +95,47 @@ class ApkImporter(
     // -- XAPK -----------------------------------------------------------
 
     private fun importXapk(xapk: File): Imported {
-        // Extract every entry into a staging directory, then pick the base APK.
+        // Extract APKs + OBBs into a staging tree that preserves depth,
+        // so two splits named "config.arm64_v8a.apk" in different
+        // subfolders don't collide.
         val stage = File(context.cacheDir, "xapk-stage-${System.nanoTime()}").apply {
             deleteRecursively()
             mkdirs()
         }
 
         try {
+            val extractedApks = mutableListOf<File>()
+            val extractedObbs = mutableListOf<File>()
+
             ZipInputStream(FileInputStream(xapk)).use { zip ->
                 var entry: ZipEntry? = zip.nextEntry
                 while (entry != null) {
+                    val name = entry.name
                     if (!entry.isDirectory) {
-                        val out = File(stage, File(entry.name).name)
-                        FileOutputStream(out).use { zip.copyTo(it) }
+                        val looksApk = name.endsWith(".apk", ignoreCase = true)
+                        val looksObb = name.endsWith(".obb", ignoreCase = true)
+                        if (looksApk || looksObb) {
+                            val safe = name.replace('/', '_').replace('\\', '_')
+                            val out = File(stage, safe)
+                            FileOutputStream(out).use { zip.copyTo(it) }
+                            if (looksApk) extractedApks += out else extractedObbs += out
+                        }
                     }
                     zip.closeEntry()
                     entry = zip.nextEntry
                 }
             }
 
-            val apks = stage.listFiles { f -> f.name.endsWith(".apk") }
-                ?.toList() ?: emptyList()
-            require(apks.isNotEmpty()) { "XAPK contains no .apk files" }
+            require(extractedApks.isNotEmpty()) {
+                "XAPK contains no .apk files (found: ${stage.list()?.joinToString() ?: "nothing"})"
+            }
 
-            // Heuristic: base APK is usually "base.apk" or the one without a split prefix.
-            val baseApk = apks.firstOrNull { it.name == "base.apk" }
-                ?: apks.firstOrNull {
-                    !it.name.startsWith("config.") && !it.name.startsWith("split_")
-                }
-                ?: apks.first()
-
-            val splits = apks.filter { it != baseApk }
+            // Heuristic: base APK is the one without a split marker.
+            val baseApk = extractedApks.firstOrNull {
+                val n = it.name
+                n.endsWith("base.apk") || (!n.startsWith("config.") && !n.startsWith("split_") && !n.contains("_config."))
+            } ?: extractedApks.first()
+            val splits = extractedApks.filter { it != baseApk }
 
             val parsed = parseManifest(baseApk, splits = splits.map { it.absolutePath }, nativeLibDir = null)
                 ?: error("XAPK base APK has no readable manifest")
@@ -147,7 +156,20 @@ class ApkImporter(
             val libDir = File(dstDir, "lib")
             libDir.deleteRecursively(); libDir.mkdirs()
             (listOf(dstBase) + dstSplits).forEach { extractNativeLibs(it, libDir) }
-            val libDirResolved = if (libDir.exists() && libDir.walkTopDown().any { it.isFile }) libDir else null
+            val libDirResolved =
+                if (libDir.exists() && libDir.walkTopDown().any { it.isFile }) libDir else null
+
+            // Copy any .obb files the XAPK carried. We store them under the
+            // guest's private obb/ dir so GuestContextOverrides can expose
+            // them later via Context.getObbDir() if needed.
+            if (extractedObbs.isNotEmpty()) {
+                val obbDir = File(dstDir, "obb").apply { mkdirs() }
+                extractedObbs.forEach { obb ->
+                    val basename = obb.name.substringAfterLast('_')
+                    obb.copyTo(File(obbDir, basename), overwrite = true)
+                }
+                Timber.i("ApkImporter: copied %d OBB file(s) for %s", extractedObbs.size, parsed.packageName)
+            }
 
             val finalManifest = parsed.copy(
                 apkPath = dstBase.absolutePath,
@@ -166,22 +188,39 @@ class ApkImporter(
     private enum class Format { APK, XAPK }
 
     private fun detectFormat(file: File): Format {
-        // Both APK and XAPK are ZIP archives. The distinguishing feature is
-        // that an APK's ZIP directory contains an "AndroidManifest.xml" at
-        // its root, while an XAPK contains *.apk entries at its root.
+        // Both APK and XAPK are ZIP archives, but the distinguishing feature
+        // is reliable: an APK's ZIP directory contains "AndroidManifest.xml"
+        // at the ROOT in binary form. An XAPK may contain a JSON file called
+        // "manifest.json" at the root plus one or more "*.apk" entries.
+        //
+        // We collect signals and decide at the end, because the order in
+        // which ZIP entries appear is not guaranteed.
+        var hasRootAndroidManifest = false
+        var hasApkEntry = false
+        var hasXapkManifestJson = false
+
         ZipInputStream(FileInputStream(file)).use { zip ->
             var entry: ZipEntry? = zip.nextEntry
             while (entry != null) {
                 val name = entry.name
-                if (name == "AndroidManifest.xml") return Format.APK
-                if (name.endsWith(".apk") && !name.contains('/')) return Format.XAPK
+                when {
+                    name == "AndroidManifest.xml" -> hasRootAndroidManifest = true
+                    name == "manifest.json" -> hasXapkManifestJson = true
+                    name.endsWith(".apk", ignoreCase = true) -> hasApkEntry = true
+                }
                 zip.closeEntry()
                 entry = zip.nextEntry
             }
         }
-        // Default to APK so a malformed archive still falls through to the
-        // manifest parser, which will give a clearer error message.
-        return Format.APK
+
+        // An XAPK ALWAYS contains .apk entries; a plain APK never does.
+        // The presence of a nested .apk is the strongest XAPK signal.
+        return when {
+            hasApkEntry -> Format.XAPK
+            hasXapkManifestJson -> Format.XAPK
+            hasRootAndroidManifest -> Format.APK
+            else -> Format.APK // unknown — let the manifest parser report it
+        }
     }
 
     // -- Native lib extraction -----------------------------------------
@@ -293,12 +332,5 @@ class ApkImporter(
         else -> name
     }
 
-    private fun InputStream.copyTo(out: FileOutputStream) {
-        val buffer = ByteArray(64 * 1024)
-        var read = read(buffer)
-        while (read >= 0) {
-            out.write(buffer, 0, read)
-            read = read(buffer)
-        }
-    }
+    // stdlib's InputStream.copyTo(OutputStream) covers this; no custom ext needed.
 }

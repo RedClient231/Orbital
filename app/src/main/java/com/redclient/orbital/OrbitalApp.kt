@@ -1,70 +1,81 @@
 package com.redclient.orbital
 
 import android.app.Application
+import android.os.Build
+import com.redclient.orbital.engine.reflect.HiddenApiBypass
 import com.redclient.orbital.engine.stub.StubBootstrap
-import com.redclient.orbital.host.OrbitalPaths
 import timber.log.Timber
 
 /**
- * Runs in every Orbital process — the host process AND each stub `:pN`
- * process. The first thing we do is figure out which we are, because
- * the initialisation paths diverge completely.
+ * Runs in every Orbital process — the host AND each stub `:pN`. The first
+ * thing we do is figure out which we are, because the init paths diverge.
  *
  * Host process:
  *  - Plant Timber trees
- *  - Build [OrbitalGraph] lazily (accessed when the first Activity starts)
+ *  - Build [OrbitalGraph] (lazy singletons used by the UI)
  *
  * Stub process (`:pN`):
  *  - Plant Timber trees
- *  - Hand off to [StubBootstrap] which installs the framework hooks and
- *    loads the guest APK. Everything below this point in onCreate is
- *    skipped for stubs.
+ *  - Install [HiddenApiBypass] so reflection on ActivityThread works
+ *  - Hand off to [StubBootstrap] to install the framework hooks and
+ *    load the guest APK. Host-only init is skipped.
  */
 class OrbitalApp : Application() {
 
-    /**
-     * Lazily-built host graph. Only valid in the host process — touching it
-     * from a stub process would be a bug (stubs have their own lifecycle
-     * driven entirely by framework hooks).
-     */
     lateinit var graph: OrbitalGraph
         private set
 
     override fun onCreate() {
         super.onCreate()
+
+        // Bypass FIRST — before any reflection on framework internals.
+        // Even host-side code (AssetManager hidden ctor during guest load)
+        // benefits from it, so we install in both branches.
+        HiddenApiBypass.install()
+
         Timber.plant(Timber.DebugTree())
 
-        val proc = currentProcessName() ?: packageName
-        if (proc != packageName) {
-            val slot = proc.substringAfterLast(":p").toIntOrNull()
+        val procName = resolveProcessName()
+        Timber.i("OrbitalApp: starting in process %s", procName)
+
+        // Stub process: parse the slot index from ":pN" and bootstrap.
+        if (procName != null && procName != packageName && ":p" in procName) {
+            val slot = procName.substringAfterLast(":p").toIntOrNull()
             if (slot != null) {
-                Timber.i("OrbitalApp: stub %s (slot %d) booting", proc, slot)
+                Timber.i("OrbitalApp: stub slot %d", slot)
                 StubBootstrap.boot(this, slot)
-                return // host-only init below is skipped
+            } else {
+                Timber.w("OrbitalApp: could not parse slot from %s", procName)
             }
-            Timber.w("OrbitalApp: unknown non-host process %s", proc)
             return
         }
 
-        // Host process
+        // Host process.
         graph = OrbitalGraph(this)
-        Timber.i("OrbitalApp: host process ready")
+        Timber.i("OrbitalApp: host ready")
     }
 
     /**
-     * Pulls the process name out of ActivityThread. Using `Application.getProcessName()`
-     * would be simpler but it's API 28+; our minSdk is 26.
+     * Returns the current process name. Uses the public
+     * [Application.getProcessName] on API 28+, falls back to a single
+     * reflection read on older versions. Either path is covered by
+     * [HiddenApiBypass].
      */
-    private fun currentProcessName(): String? = try {
-        val at = Class.forName("android.app.ActivityThread")
-        val currentAt = at.getDeclaredMethod("currentActivityThread").invoke(null)
-        at.getDeclaredField("mProcessName").apply { isAccessible = true }.get(currentAt) as? String
+    private fun resolveProcessName(): String? = try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            Application.getProcessName()
+        } else {
+            val at = Class.forName("android.app.ActivityThread")
+            val current = at.getDeclaredMethod("currentActivityThread").invoke(null)
+            at.getDeclaredField("mProcessName").apply { isAccessible = true }
+                .get(current) as? String
+        }
     } catch (t: Throwable) {
         Timber.w(t, "OrbitalApp: could not determine process name")
         null
     }
 }
 
-/** Convenience accessor for the host graph from any Activity/ViewModel. */
+/** Host-side DI accessor. Must never be called from stub processes. */
 fun android.content.Context.orbital(): OrbitalGraph =
     (applicationContext as OrbitalApp).graph

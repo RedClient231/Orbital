@@ -31,11 +31,18 @@ sealed class OrbitalResult<out T> {
     }
 
     companion object {
-        inline fun <T> runCatching(message: String, block: () -> T): OrbitalResult<T> =
+        /**
+         * Wraps [block] and turns any throwable into [Err]. The error
+         * message is the throwable's own message when available (most
+         * informative for the user), falling back to [context] when the
+         * throwable is a marker with no message.
+         */
+        inline fun <T> runCatching(context: String, block: () -> T): OrbitalResult<T> =
             try {
                 Ok(block())
             } catch (t: Throwable) {
-                Err(message, t)
+                val msg = t.message?.takeIf { it.isNotBlank() } ?: context
+                Err("$context: $msg", t)
             }
     }
 }
