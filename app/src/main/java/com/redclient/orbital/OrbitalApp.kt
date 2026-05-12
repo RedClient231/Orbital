@@ -34,8 +34,8 @@ class OrbitalApp : Application() {
         // SEED — captures the ENTIRE logcat to /Download/OrbitalLogs/
         // from this exact moment until the process dies. Every tag, every
         // priority, every framework message. This is our reverse engineering.
-        val procName = resolveProcessName() ?: packageName
-        com.redclient.orbital.engine.diagnostics.LogcatSeed.plant(procName)
+        val seedProcName = resolveProcessName() ?: packageName
+        com.redclient.orbital.engine.diagnostics.LogcatSeed.plant(seedProcName)
 
         // On Android 11+, request MANAGE_EXTERNAL_STORAGE so the seed can
         // write to /Download/. Without this, the logcat file won't be created.
